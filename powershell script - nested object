@@ -1,0 +1,44 @@
+
+
+
+# Define a function to get the value of a nested key
+function Get-NestedValue {
+    param (
+        [Parameter(Mandatory=$true)]
+        [object]$InputObject,
+
+        [Parameter(Mandatory=$true)]
+        [string]$KeyName
+    )
+
+    if ($InputObject -is [object[]]) {
+        foreach ($item in $InputObject) {
+            $result = Get-NestedValue -InputObject $item -KeyName $KeyName
+            if ($result -ne $null) {
+                Write-Output $result
+            }
+        }
+    } elseif ($InputObject -is [System.Collections.Hashtable]) {
+        if ($InputObject.ContainsKey($KeyName)) {
+            Write-Output $InputObject[$KeyName]
+        } else {
+            foreach ($key in $InputObject.Keys) {
+                $result = Get-NestedValue -InputObject $InputObject[$key] -KeyName $KeyName
+                if ($result -ne $null) {
+                    Write-Output $result
+                }
+            }
+        }
+    }
+}
+
+# Example nested object
+$nestedObject = @{
+    "a" = @{
+        "b" = @{
+            "c" = "d"
+        }
+    }
+}
+$keyName = Read-Host "Enter the key name"
+Get-NestedValue -InputObject $nestedObject -KeyName $keyName
