@@ -1,0 +1,20 @@
+# This a AZure powershell code to retrive specific keys of a AZURE VM metadata.
+
+
+Connect-AzAccount
+
+$vmName = "pranavivm1"
+$resourceGroupName = "pranavirg"
+
+# Query the Azure VM's metadata
+$vm = Get-AzVM -ResourceGroupName $resourceGroupName -Name $vmName
+
+# Extract specific metadata keys
+$vmName = $vm.OSProfile.ComputerName
+$vmLocation = $vm.Location
+$privateIpAddress = $vm.NetworkProfile.NetworkInterfaces[0].IpConfigurations[0].PrivateIpAddress
+
+# Output the values
+Write-Host "VM Name: $vmName"
+Write-Host "VM Location: $vmLocation"
+Write-Host "Private IP Address: $privateIpAddress"
