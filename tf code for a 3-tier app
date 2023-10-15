@@ -1,0 +1,143 @@
+# Define the Azure provider
+provider "azurerm" {
+  features {}
+}
+
+# Create a resource group
+resource "azurerm_resource_group" "example" {
+  name     = "myResourceGroup"
+  location = "East US"
+}
+
+# Create a virtual network
+resource "azurerm_virtual_network" "example" {
+  name                = "myVNet"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  address_space       = ["10.0.0.0/16"]
+}
+
+# Create subnets for presentation, application, and data tiers
+resource "azurerm_subnet" "presentation" {
+  name                 = "presentation"
+  resource_group_name  = azurerm_resource_group.example.name
+  virtual_network_name = azurerm_virtual_network.example.name
+  address_prefixes     = ["10.0.1.0/24"]
+}
+
+resource "azurerm_subnet" "application" {
+  name                 = "application"
+  resource_group_name  = azurerm_resource_group.example.name
+  virtual_network_name = azurerm_virtual_network.example.name
+  address_prefixes     = ["10.0.2.0/24"]
+}
+
+resource "azurerm_subnet" "data" {
+  name                 = "data"
+  resource_group_name  = azurerm_resource_group.example.name
+  virtual_network_name = azurerm_virtual_network.example.name
+  address_prefixes     = ["10.0.3.0/24"]
+}
+
+# Define placeholder virtual machines (VMs) for each tier
+resource "azurerm_linux_virtual_machine" "presentation" {
+  count                = 2
+  name                 = "presentation-vm-${count.index}"
+  resource_group_name  = azurerm_resource_group.example.name
+  location             = azurerm_resource_group.example.location
+  size                 = "Standard_DS2_v2"
+  admin_username       = "adminuser"
+  admin_password       = "Password12345!"
+  network_interface_ids = [element(azurerm_network_interface.presentation.*.id, count.index)]
+}
+
+resource "azurerm_linux_virtual_machine" "application" {
+  count                = 2
+  name                 = "application-vm-${count.index}"
+  resource_group_name  = azurerm_resource_group.example.name
+  location             = azurerm_resource_group.example.location
+  size                 = "Standard_DS2_v2"
+  admin_username       = "adminuser"
+  admin_password       = "Password12345!"
+  network_interface_ids = [element(azurerm_network_interface.application.*.id, count.index)]
+}
+
+resource "azurerm_linux_virtual_machine" "data" {
+  count                = 2
+  name                 = "data-vm-${count.index}"
+  resource_group_name  = azurerm_resource_group.example.name
+  location             = azurerm_resource_group.example.location
+  size                 = "Standard_DS2_v2"
+  admin_username       = "adminuser"
+  admin_password       = "Password12345!"
+  network_interface_ids = [element(azurerm_network_interface.data.*.id, count.index)]
+}
+
+# Define network interfaces
+resource "azurerm_network_interface" "presentation" {
+  count                = 2
+  name                 = "presentation-nic-${count.index}"
+  location             = azurerm_resource_group.example.location
+  resource_group_name  = azurerm_resource_group.example.name
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = element(azurerm_subnet.presentation.*.id, count.index)
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_network_interface" "application" {
+  count                = 2
+  name                 = "application-nic-${count.index}"
+  location             = azurerm_resource_group.example.location
+  resource_group_name  = azurerm_resource_group.example.name
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = element(azurerm_subnet.application.*.id, count.index)
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+resource "azurerm_network_interface" "data" {
+  count                = 2
+  name                 = "data-nic-${count.index}"
+  location             = azurerm_resource_group.example.location
+  resource_group_name  = azurerm_resource_group.example.name
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = element(azurerm_subnet.data.*.id, count.index)
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
+# Define a security group and rules for each tier (customize as needed)
+resource "azurerm_network_security_group" "presentation" {
+  name                = "presentation-nsg"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  security_rule {
+    name                       = "SSH"
+    priority                   = 1001
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+
+resource "azurerm_network_security_group" "application" {
+  name                = "application-nsg"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  # Define security rules for application tier
+}
+
+resource "azurerm_network_security_group" "data" {
+  name                = "data-nsg"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+  # Define security rules for data tier
+}
