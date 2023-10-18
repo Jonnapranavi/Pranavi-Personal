@@ -1,6 +1,5 @@
 # This a AZure powershell code to retrive specific keys of a AZURE VM metadata.
 
-
 Connect-AzAccount
 
 $vmName = "pranavivm1"
@@ -18,3 +17,11 @@ $privateIpAddress = $vm.NetworkProfile.NetworkInterfaces[0].IpConfigurations[0].
 Write-Host "VM Name: $vmName"
 Write-Host "VM Location: $vmLocation"
 Write-Host "Private IP Address: $privateIpAddress"
+
+
+------------------------------------------------------------------------
+
+#Command to get all meta data service of a particular instance
+#This is a meta data service provided by azure
+
+Invoke-RestMethod -Headers @{"Metadata"="true"} -Method GET -NoProxy -Uri "http://169.254.169.254/metadata/instance?api-version=2021-02-01" | ConvertTo-Json -Depth 64
