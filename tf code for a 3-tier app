@@ -1,7 +1,14 @@
-1. Creating Resoirce group & VNET
-2. Creating subnets for each tier
-3. Creating VMs as place holders for each tier
-4. Creating NSGs to allow traffic between each tier
+-> Create Resource Group, Virtual Network & Subnets for each tier (Web, App, and DB)
+-> Create Network Security Groups and their rules for each tier
+->  Define VMs and configurations
+-> Attach VMs to Network Interfaces
+-> Create Azure Application Gateway & Define Gateway IP Configuration along with WAF
+-> Define Frontend Port and IP Configuration , Backend Address Pool ,HTTP Listeners
+-> Define Request Routing Rules
+-> Define Backend HTTP Settings
+-> Create Public IP for the Application Gateway
+-> Configure DNS and Application Deployments
+
 -------------------------------------------------------------------------------------------
 provider "azurerm" {
   features {}
@@ -87,7 +94,7 @@ resource "azurerm_network_security_rule" "app_http" {
   access                      = "Allow"
   protocol                    = "Tcp"
   source_port_range           = "*"
-  destination_port_range      = "8080"  # Example port for your application
+  destination_port_range      = "8080"  # Example port 
   source_address_prefix       = "*"
   destination_address_prefix  = "*"
   network_security_group_name = azurerm_network_security_group.app.name
@@ -112,8 +119,8 @@ resource "azurerm_network_security_rule" "db_app" {
 resource "azurerm_network_interface" "web" {
   count               = 2
   name                = "web-nic-${count.index}"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.pranavirg.location
+  resource_group_name = azurerm_resource_group.pranavirg.name
 
   ip_configuration {
     name                          = "internal"
@@ -126,8 +133,8 @@ resource "azurerm_network_interface" "web" {
 resource "azurerm_network_interface" "app" {
   count               = 2
   name                = "app-nic-${count.index}"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.pranavirg.location
+  resource_group_name = azurerm_resource_group.pranavirg.name
 
   ip_configuration {
     name                          = "internal"
@@ -140,8 +147,8 @@ resource "azurerm_network_interface" "app" {
 resource "azurerm_network_interface" "db" {
   count               = 2
   name                = "db-nic-${count.index}"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.pranavirg.location
+  resource_group_name = azurerm_resource_group.pranavirg.name
 
   ip_configuration {
     name                          = "internal"
@@ -151,35 +158,54 @@ resource "azurerm_network_interface" "db" {
   network_security_group_ids = [azurerm_network_security_group.db.id]
 }
 
-# Define virtual machines and attach them to network interfaces
-# Customize VM configurations and OS images as needed
-# ...
+# Define VMs and their configuration
+resource "azurerm_windows_virtual_machine" "pranaviwebvms" {
+  count                 = 2
+  name                  = "web-vm-${count.index}"
+  location              = azurerm_resource_group.pranavirg.location
+  resource_group_name   = azurerm_resource_group.pranavirg.name
+  network_interface_ids = [azurerm_network_interface.web.id]
+  size                  = "Standard_DS2_v2"
+  admin_username        = "admin1"
+  admin_password        = "Password123!"
 
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Premium_LRS"
+  }
 
+  source_image_reference {
+    publisher = "MicrosoftWindowsServer"
+    offer     = "WindowsServer"
+    sku       = "2019-Datacenter"
+    version   = "latest"
+  }
+}
+#similarly we can create for app and db tiers
 
-# Create an Azure Application Gateway
-resource "azurerm_application_gateway" "example" {
-  name                = "myAppGateway"
-  resource_group_name = azurerm_resource_group.example.name
-  location            = azurerm_resource_group.example.location
+# Define Azure Application Gateway with WAF
+resource "azurerm_application_gateway" "pranaviAGW" {
+  name                = "pranavi-appgateway"
+  resource_group_name = azurerm_resource_group.pranavirg.name
+  location            = azurerm_resource_group.pranavirg.location
   sku {
-    name     = "Standard_v2"
-    tier     = "Standard"
+    name     = "WAF_v2"
+    tier     = "WAF_v2"
     capacity = 2
   }
 
   gateway_ip_configuration {
-    name      = "myGatewayIpConfig"
+    name      = "appGatewayIpConfig"
     subnet_id = azurerm_subnet.web.id
   }
 
   frontend_port {
-    name     = "httpPort"
-    port     = 80
+    name = "http"
+    port = 80
   }
 
   frontend_ip_configuration {
-    name      = "publicIp"
+    name                 = "publicIPAddress"
     public_ip_address_id = azurerm_public_ip.example.id
   }
 
@@ -187,35 +213,84 @@ resource "azurerm_application_gateway" "example" {
     name = "backendPool"
   }
 
-  http_listener {
-    name                  = "httpListener"
-    frontend_ip_configuration_name = "publicIp"
-    frontend_port_name           = "httpPort"
+  # Define a listener
+  listener {
+    name                           = "http"
+    frontend_ip_configuration_name = "publicIPAddress"
+    frontend_port_name             = "http"
+    protocol                       = "Http"
   }
 
+  # Define request routing rules to route traffic to backend pools
   request_routing_rule {
     name                       = "rule1"
     rule_type                  = "Basic"
-    http_listener_name          = azurerm_application_gateway.example.http_listener[0].name
-    backend_address_pool_name   = azurerm_application_gateway.example.backend_address_pool[0].name
-    backend_http_settings_name  = azurerm_application_gateway.example.backend_http_settings[0].name
+    http_listener_name          = azurerm_application_gateway.pranaviAGW.listener[0].name
+    backend_address_pool_name   = azurerm_application_gateway.pranaviAGW.backend_address_pool[0].name
+    backend_http_settings_name  = azurerm_application_gateway.pranaviAGW.backend_http_settings[0].name
   }
 
   backend_http_settings {
-    name                  = "myBackendHttpSettings"
+    name                  = "exampleBackendHttpSettings"
     cookie_based_affinity = "Disabled"
+    path                  = "/"
     port                  = 80
     protocol              = "Http"
     request_timeout       = 60
   }
+
+  http_listener {
+    name                           = "httpListener"
+    frontend_ip_configuration_name = "publicIPAddress"
+    frontend_port_name             = "http"
+    protocol                       = "Http"
+  }
+
+  http_listener {
+    name                           = "httpsListener"
+    frontend_ip_configuration_name = "publicIPAddress"
+    frontend_port_name             = "https"
+    protocol                       = "Https"
+    ssl_certificate_name            = azurerm_application_gateway.pranaviAGW.ssl_certificate[0].name
+  }
+
+  ssl_certificate {
+    name     = "exampleSSLCert"
+    data     = filebase64("./example.pfx")
+    password = "examplePasswordHere"
+  }
+
+  # Define backend pools and associate VMs with it
+  backend_address_pool {
+    name = "backendPool"
+  }
+
+  resource "azurerm_application_gateway_backend_address_pool" "example" {
+  name                = "backendPool"
+  resource_group_name = azurerm_resource_group.pranavirg.name
+  application_gateway_name = azurerm_application_gateway.pranaviAGW.name
+
+  backend_addresses = [
+    # Reference the VMs in the backend pool
+    for vm in azurerm_windows_virtual_machine.pranavivms : {
+      fqdns = [azurerm_network_interface.app[vm.count].private_ip_address]
+    }
+  ]
 }
 
-resource "azurerm_public_ip" "example" {
-  name                = "example-publicip"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
-  allocation_method   = "Static"
+  # Define Web Application Firewall (WAF) settings
+  web_application_firewall_configuration {
+    enabled               = true
+    firewall_mode         = "Prevention"
+    rule_set_type         = "OWASP"
+    rule_set_version      = "3.0"
+    disabled_rule_groups  = []
+    request_body_check    = "Enabled"
+    request_body_limit    = 131072
+    file_upload_limit     = 33554432
+  }
 }
+
 
 
 
