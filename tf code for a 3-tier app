@@ -3,148 +3,219 @@
 3. Creating VMs as place holders for each tier
 4. Creating NSGs to allow traffic between each tier
 -------------------------------------------------------------------------------------------
-
-
-# Define the Azure provider
 provider "azurerm" {
   features {}
 }
 
-# Creating a resource group
+# Create a resource group
 resource "azurerm_resource_group" "pranavirg" {
   name     = "PranaviResourceGroup"
   location = "East US"
 }
 
-# Creating a virtual network
+# Create a virtual network
 resource "azurerm_virtual_network" "pranavivnet" {
-  name                = "PranaviVNet"
-  location            = azurerm_resource_group.pranavirg.location
+  name                = "pranaviVNet"
   resource_group_name = azurerm_resource_group.pranavirg.name
+  location            = azurerm_resource_group.pranavirg.location
   address_space       = ["10.0.0.0/16"]
 }
 
-# Create subnets for presentation, application, and data tiers
-resource "azurerm_subnet" "presentation" {
-  name                 = "presentation"
+# Create subnets for each tier
+resource "azurerm_subnet" "web" {
+  name                 = "web-subnet"
   resource_group_name  = azurerm_resource_group.pranavirg.name
   virtual_network_name = azurerm_virtual_network.pranavivnet.name
   address_prefixes     = ["10.0.1.0/24"]
 }
 
-resource "azurerm_subnet" "application" {
-  name                 = "application"
+resource "azurerm_subnet" "app" {
+  name                 = "app-subnet"
   resource_group_name  = azurerm_resource_group.pranavirg.name
   virtual_network_name = azurerm_virtual_network.pranavivnet.name
   address_prefixes     = ["10.0.2.0/24"]
 }
 
-resource "azurerm_subnet" "data" {
-  name                 = "data"
+resource "azurerm_subnet" "db" {
+  name                 = "db-subnet"
   resource_group_name  = azurerm_resource_group.pranavirg.name
   virtual_network_name = azurerm_virtual_network.pranavivnet.name
   address_prefixes     = ["10.0.3.0/24"]
 }
 
-# creating virtual machines (VMs) for each tier
-resource "azurerm_linux_virtual_machine" "presentation" {
-  count                = 2
-  name                 = "presentation-vm-${count.index}"
-  resource_group_name  = azurerm_resource_group.pranavirg.name
-  location             = azurerm_resource_group.pranavirg.location
-  size                 = "Standard_DS2_v2"
-  admin_username       = "admin2"
-  admin_password       = "Password123!"
-  network_interface_ids = [element(azurerm_network_interface.presentation.*.id, count.index)]
+# Create network security groups for each tier
+
+resource "azurerm_network_security_group" "web" {
+  name                = "web-nsg"
+  location            = azurerm_resource_group.pranavirg.location
+  resource_group_name = azurerm_resource_group.pranavirg.name
 }
 
-resource "azurerm_linux_virtual_machine" "application" {
-  count                = 2
-  name                 = "application-vm-${count.index}"
-  resource_group_name  = azurerm_resource_group.pranavirg.name
-  location             = azurerm_resource_group.pranavirg.location
-  size                 = "Standard_DS2_v2"
-  admin_username       = "admin2"
-  admin_password       = "Password123!"
-  network_interface_ids = [element(azurerm_network_interface.application.*.id, count.index)]
+resource "azurerm_network_security_group" "app" {
+  name                = "app-nsg"
+  location            = azurerm_resource_group.pranavirg.location
+  resource_group_name = azurerm_resource_group.pranavirg.name
 }
 
-resource "azurerm_linux_virtual_machine" "data" {
-  count                = 2
-  name                 = "data-vm-${count.index}"
-  resource_group_name  = azurerm_resource_group.pranavirg.name
-  location             = azurerm_resource_group.pranavirg.location
-  size                 = "Standard_DS2_v2"
-  admin_username       = "admin3"
-  admin_password       = "Password123!"
-  network_interface_ids = [element(azurerm_network_interface.data.*.id, count.index)]
+resource "azurerm_network_security_group" "db" {
+  name                = "db-nsg"
+  location            = azurerm_resource_group.pranavirg.location
+  resource_group_name = azurerm_resource_group.pranavirg.name
 }
 
-# Define network interfaces
-resource "azurerm_network_interface" "presentation" {
-  count                = 2
-  name                 = "presentation-nic-${count.index}"
-  location             = azurerm_resource_group.example.location
-  resource_group_name  = azurerm_resource_group.example.name
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = element(azurerm_subnet.presentation.*.id, count.index)
-    private_ip_address_allocation = "Dynamic"
-  }
+# Define security rules for network security groups
+# For example, allow incoming HTTP traffic
+resource "azurerm_network_security_rule" "web_http" {
+  name                        = "allow-http"
+  priority                    = 100
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "80"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  network_security_group_name = azurerm_network_security_group.web.name
 }
 
-resource "azurerm_network_interface" "application" {
-  count                = 2
-  name                 = "application-nic-${count.index}"
-  location             = azurerm_resource_group.example.location
-  resource_group_name  = azurerm_resource_group.example.name
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = element(azurerm_subnet.application.*.id, count.index)
-    private_ip_address_allocation = "Dynamic"
-  }
+# For app tier, you might need different rules
+# For the app tier, allow incoming application-specific traffic
+resource "azurerm_network_security_rule" "app_http" {
+  name                        = "allow-app-http"
+  priority                    = 100
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "8080"  # Example port for your application
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  network_security_group_name = azurerm_network_security_group.app.name
 }
 
-resource "azurerm_network_interface" "data" {
-  count                = 2
-  name                 = "data-nic-${count.index}"
-  location             = azurerm_resource_group.example.location
-  resource_group_name  = azurerm_resource_group.example.name
-  ip_configuration {
-    name                          = "internal"
-    subnet_id                     = element(azurerm_subnet.data.*.id, count.index)
-    private_ip_address_allocation = "Dynamic"
-  }
+# For the database tier, you would typically allow traffic from the app tier
+resource "azurerm_network_security_rule" "db_app" {
+  name                        = "allow-app-to-db"
+  priority                    = 100
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "1433" # SQL Server port
+  source_address_prefix       = azurerm_subnet.app.address_prefixes[0]
+  destination_address_prefix  = "*"
+  network_security_group_name = azurerm_network_security_group.db.name
 }
 
-# Define a security group and rules for each tier 
-resource "azurerm_network_security_group" "presentation" {
-  name                = "presentation-nsg"
+# Create network interfaces for each tier & assosciating them with NSGs
+
+resource "azurerm_network_interface" "web" {
+  count               = 2
+  name                = "web-nic-${count.index}"
   location            = azurerm_resource_group.example.location
   resource_group_name = azurerm_resource_group.example.name
-  security_rule {
-    name                       = "SSH"
-    priority                   = 1001
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "Tcp"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.web.id
+    private_ip_address_allocation = "Dynamic"
+  }
+  network_security_group_ids = [azurerm_network_security_group.web.id]
+}
+
+resource "azurerm_network_interface" "app" {
+  count               = 2
+  name                = "app-nic-${count.index}"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.app.id
+    private_ip_address_allocation = "Dynamic"
+  }
+  network_security_group_ids = [azurerm_network_security_group.app.id]
+}
+
+resource "azurerm_network_interface" "db" {
+  count               = 2
+  name                = "db-nic-${count.index}"
+  location            = azurerm_resource_group.example.location
+  resource_group_name = azurerm_resource_group.example.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.db.id
+    private_ip_address_allocation = "Dynamic"
+  }
+  network_security_group_ids = [azurerm_network_security_group.db.id]
+}
+
+# Define virtual machines and attach them to network interfaces
+# Customize VM configurations and OS images as needed
+# ...
+
+
+
+# Create an Azure Application Gateway
+resource "azurerm_application_gateway" "example" {
+  name                = "myAppGateway"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+  sku {
+    name     = "Standard_v2"
+    tier     = "Standard"
+    capacity = 2
+  }
+
+  gateway_ip_configuration {
+    name      = "myGatewayIpConfig"
+    subnet_id = azurerm_subnet.web.id
+  }
+
+  frontend_port {
+    name     = "httpPort"
+    port     = 80
+  }
+
+  frontend_ip_configuration {
+    name      = "publicIp"
+    public_ip_address_id = azurerm_public_ip.example.id
+  }
+
+  backend_address_pool {
+    name = "backendPool"
+  }
+
+  http_listener {
+    name                  = "httpListener"
+    frontend_ip_configuration_name = "publicIp"
+    frontend_port_name           = "httpPort"
+  }
+
+  request_routing_rule {
+    name                       = "rule1"
+    rule_type                  = "Basic"
+    http_listener_name          = azurerm_application_gateway.example.http_listener[0].name
+    backend_address_pool_name   = azurerm_application_gateway.example.backend_address_pool[0].name
+    backend_http_settings_name  = azurerm_application_gateway.example.backend_http_settings[0].name
+  }
+
+  backend_http_settings {
+    name                  = "myBackendHttpSettings"
+    cookie_based_affinity = "Disabled"
+    port                  = 80
+    protocol              = "Http"
+    request_timeout       = 60
   }
 }
 
-resource "azurerm_network_security_group" "application" {
-  name                = "application-nsg"
+resource "azurerm_public_ip" "example" {
+  name                = "example-publicip"
   location            = azurerm_resource_group.example.location
   resource_group_name = azurerm_resource_group.example.name
-  # Define security rules for application tier
+  allocation_method   = "Static"
 }
 
-resource "azurerm_network_security_group" "data" {
-  name                = "data-nsg"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
-  # Define security rules for data tier
-}
+
+
