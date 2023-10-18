@@ -3,73 +3,73 @@ provider "azurerm" {
   features {}
 }
 
-# Create a resource group
-resource "azurerm_resource_group" "example" {
-  name     = "myResourceGroup"
+# Creating a resource group
+resource "azurerm_resource_group" "pranavirg" {
+  name     = "PranaviResourceGroup"
   location = "East US"
 }
 
-# Create a virtual network
-resource "azurerm_virtual_network" "example" {
-  name                = "myVNet"
-  location            = azurerm_resource_group.example.location
-  resource_group_name = azurerm_resource_group.example.name
+# Creating a virtual network
+resource "azurerm_virtual_network" "pranavivnet" {
+  name                = "PranaviVNet"
+  location            = azurerm_resource_group.pranavirg.location
+  resource_group_name = azurerm_resource_group.pranavirg.name
   address_space       = ["10.0.0.0/16"]
 }
 
 # Create subnets for presentation, application, and data tiers
 resource "azurerm_subnet" "presentation" {
   name                 = "presentation"
-  resource_group_name  = azurerm_resource_group.example.name
-  virtual_network_name = azurerm_virtual_network.example.name
+  resource_group_name  = azurerm_resource_group.pranavirg.name
+  virtual_network_name = azurerm_virtual_network.pranavivnet.name
   address_prefixes     = ["10.0.1.0/24"]
 }
 
 resource "azurerm_subnet" "application" {
   name                 = "application"
-  resource_group_name  = azurerm_resource_group.example.name
-  virtual_network_name = azurerm_virtual_network.example.name
+  resource_group_name  = azurerm_resource_group.pranavirg.name
+  virtual_network_name = azurerm_virtual_network.pranavivnet.name
   address_prefixes     = ["10.0.2.0/24"]
 }
 
 resource "azurerm_subnet" "data" {
   name                 = "data"
-  resource_group_name  = azurerm_resource_group.example.name
-  virtual_network_name = azurerm_virtual_network.example.name
+  resource_group_name  = azurerm_resource_group.pranavirg.name
+  virtual_network_name = azurerm_virtual_network.pranavivnet.name
   address_prefixes     = ["10.0.3.0/24"]
 }
 
-# Define placeholder virtual machines (VMs) for each tier
+# creating virtual machines (VMs) for each tier
 resource "azurerm_linux_virtual_machine" "presentation" {
   count                = 2
   name                 = "presentation-vm-${count.index}"
-  resource_group_name  = azurerm_resource_group.example.name
-  location             = azurerm_resource_group.example.location
+  resource_group_name  = azurerm_resource_group.pranavirg.name
+  location             = azurerm_resource_group.pranavirg.location
   size                 = "Standard_DS2_v2"
-  admin_username       = "adminuser"
-  admin_password       = "Password12345!"
+  admin_username       = "admin2"
+  admin_password       = "Password123!"
   network_interface_ids = [element(azurerm_network_interface.presentation.*.id, count.index)]
 }
 
 resource "azurerm_linux_virtual_machine" "application" {
   count                = 2
   name                 = "application-vm-${count.index}"
-  resource_group_name  = azurerm_resource_group.example.name
-  location             = azurerm_resource_group.example.location
+  resource_group_name  = azurerm_resource_group.pranavirg.name
+  location             = azurerm_resource_group.pranavirg.location
   size                 = "Standard_DS2_v2"
-  admin_username       = "adminuser"
-  admin_password       = "Password12345!"
+  admin_username       = "admin2"
+  admin_password       = "Password123!"
   network_interface_ids = [element(azurerm_network_interface.application.*.id, count.index)]
 }
 
 resource "azurerm_linux_virtual_machine" "data" {
   count                = 2
   name                 = "data-vm-${count.index}"
-  resource_group_name  = azurerm_resource_group.example.name
-  location             = azurerm_resource_group.example.location
+  resource_group_name  = azurerm_resource_group.pranavirg.name
+  location             = azurerm_resource_group.pranavirg.location
   size                 = "Standard_DS2_v2"
-  admin_username       = "adminuser"
-  admin_password       = "Password12345!"
+  admin_username       = "admin3"
+  admin_password       = "Password123!"
   network_interface_ids = [element(azurerm_network_interface.data.*.id, count.index)]
 }
 
@@ -110,7 +110,7 @@ resource "azurerm_network_interface" "data" {
   }
 }
 
-# Define a security group and rules for each tier (customize as needed)
+# Define a security group and rules for each tier 
 resource "azurerm_network_security_group" "presentation" {
   name                = "presentation-nsg"
   location            = azurerm_resource_group.example.location
