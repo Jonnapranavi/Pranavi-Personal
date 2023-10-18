@@ -1,3 +1,10 @@
+1. Creating Resoirce group & VNET
+2. Creating subnets for each tier
+3. Creating VMs as place holders for each tier
+4. Creating NSGs to allow traffic between each tier
+-------------------------------------------------------------------------------------------
+
+
 # Define the Azure provider
 provider "azurerm" {
   features {}
