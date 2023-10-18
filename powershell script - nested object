@@ -1,6 +1,23 @@
+$object = @{
+    'a' = @{
+        'b' = @{
+            'c' = 'd'
+        }
+    }
+}
 
+# Prompt the user for input
+$key = Read-Host -Prompt "Enter 'a', 'b', or 'c' to retrieve a value from the nested object:"
 
+# Access the value based on user input
+if ($object.ContainsKey($key)) {
+    $value = $object[$key]
+    Write-Host "Value for '$key': $value"
+} else {
+    Write-Host "Key '$key' not found in the nested object."
+}
 
+-----------------------------------------------------------------------------------
 # Define a function to get the value of a nested key
 function Get-NestedValue {
     param (
