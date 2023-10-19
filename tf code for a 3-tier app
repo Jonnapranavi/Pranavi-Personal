@@ -183,6 +183,10 @@ resource "azurerm_windows_virtual_machine" "pranaviwebvms" {
 }
 #similarly we can create for app and db tiers
 
+Module {
+source = azure/application-gateway/azurerm
+name = example
+
 # Define Azure Application Gateway with WAF
 resource "azurerm_application_gateway" "pranaviAGW" {
   name                = "pranavi-appgateway"
